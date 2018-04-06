@@ -3,14 +3,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tensorflow.examples.tutorials.mnist import input_data
 mnist = input_data.read_data_sets("data", one_hot=True)
+model_path = "saver/lenet_model.ckpt"
 
 def create_placeholder(n_H, n_W, n_C, n_y):
-    '''
-    n_H: the hight of image
-    n_W: the width of image
-    n_C: the image's channal numbers
-    n_y: the class we need to classify
-    '''
+    # '''
+    # n_H: the hight of image
+    # n_W: the width of image
+    # n_C: the image's channal numbers
+    # n_y: the class we need to classify
+    # '''
     X = tf.placeholder(tf.float32, shape = [None, n_H, n_W, n_C], name = "X")
     Y = tf.placeholder(tf.float32, shape = [None, n_y], name = "Y")
 
@@ -20,15 +21,15 @@ def initialize_parameters():
     W1 = tf.get_variable(name = "W1", dtype = tf.float32, shape = [5, 5, 1, 6],
                         initializer = tf.contrib.layers.xavier_initializer(seed = 0))
 
-    '''
-    W1_1 average pool ksize = (1, 2, 2, 1) strides = 2
-    '''
+    # '''
+    # W1_1 average pool ksize = (1, 2, 2, 1) strides = 2
+    # '''
     W2 = tf.get_variable(name = "W2", dtype = tf.float32, shape = [5, 5, 6, 16],
                         initializer = tf.contrib.layers.xavier_initializer(seed = 0))
 
-    '''
-    W2_2 average pool ksize = (1, 2, 2, 1) strides = 2
-    '''
+    # '''
+    # W2_2 average pool ksize = (1, 2, 2, 1) strides = 2
+    # '''
     parameters = {
         "W1": W1,
         "W2": W2
@@ -37,11 +38,11 @@ def initialize_parameters():
     return parameters
 
 def forward_propagation(X, parameters):
-    '''
-    Implement the forward propagation for the model:
-    (32, 32, 1) -> Conv2D(5*5, strides = 1) -> Avg Pool(2*2, strides = 2) -> Conv2D(5*5, strides = 1) -> Avg Pool(2*2, strides = 2)
-    ->Flatten1(400) -> fullconnected(84) -> softmax(10)
-    '''
+    # '''
+    # Implement the forward propagation for the model:
+    # (32, 32, 1) -> Conv2D(5*5, strides = 1) -> Avg Pool(2*2, strides = 2) -> Conv2D(5*5, strides = 1) -> Avg Pool(2*2, strides = 2)
+    # ->Flatten1(400) -> fullconnected(84) -> softmax(10)
+    # '''
     W1 = parameters["W1"]
     W2 = parameters["W2"]
     
@@ -88,6 +89,8 @@ def model(mnist, learning_rate = 0.001, batch_size = 128, training_iters = 20000
 
     init = tf.global_variables_initializer()
 
+    saver = tf.train.Saver()  #存储所有的variable
+
     with tf.Session() as sess:
         sess.run(init)
         step = 1
@@ -108,6 +111,9 @@ def model(mnist, learning_rate = 0.001, batch_size = 128, training_iters = 20000
         sess.run(parameters)
         print("Optimization finished!")
 
+        save_path = saver.save(sess, model_path) #保存到本地
+        print("Model saved in file: %s" % save_path)
+
         print("Testing Accuracy:", \
                 sess.run(accuracy, feed_dict={
                                             X: mnist.test.images[:1024].reshape(1024, 28, 28, 1),
@@ -121,4 +127,37 @@ def model(mnist, learning_rate = 0.001, batch_size = 128, training_iters = 20000
     
     return parameters
 
-parameters = model(mnist)
+def detector(mnist):
+    X = tf.placeholder(tf.float32, shape = [None, 28, 28, 1], name = "X")
+    parameters = initialize_parameters()
+    Z5 = forward_propagation(X, parameters)
+    
+    sess = tf.Session()
+    saver = tf.train.Saver()
+    saver.restore(sess, model_path)
+    print("Model restored!")
+
+    pred = tf.argmax(Z5, 1)
+
+    check_id = 1
+    loop = True
+
+    while loop:
+        print("Input the image number you want to check ->")
+        print("### if you input negative number, then the program will be over. ###")
+        
+        check_id = int(input())
+        if check_id < 0:
+            break
+        
+        X_test = mnist.test.images[check_id].reshape(1, 28, 28, 1)
+        
+        result = sess.run(pred, feed_dict = {X: X_test})
+
+        print("The model predict this number is %d" % (result[0]))
+
+        X_test = X_test.reshape(28, 28)
+        plt.imshow(X_test)
+        plt.show()
+
+detector(mnist)
